@@ -12,12 +12,7 @@ from backend.app.models import Job
 import asyncio
 
 
-router = APIRouter(prefix="/jobs", tags=["jobs"])
-
-
-@router.get("/")
-async def get_event_details():
-    pass
+router: APIRouter = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
 @router.post("/", response_model=Job)
@@ -30,14 +25,16 @@ def create_job(session: SessionDep, job_create: JobCreate):
     return db_obj
 
 
+# TODO: Send a completion signal when the stream has completed to prevent onError
+# event on frontend.
 @router.get("/{job_id}", response_class=EventSourceResponse)
 async def sse_job(
     session: SessionDep, job_id: str, word_count: int = 100
 ) -> AsyncIterable[ServerSentEvent]:
 
+    print(f"sse_job called with job_id={job_id}, word_count={word_count}")
     stmt = select(Job).where(Job.id == job_id)
     job: Optional[Job] = session.exec(stmt).first()
-
     if not job:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
 

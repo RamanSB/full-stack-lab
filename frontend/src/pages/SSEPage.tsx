@@ -4,6 +4,10 @@ import { createJob } from "../features/jobs/api";
 import { openJobStream } from "../features/jobs/stream";
 import type { Job } from "../features/jobs/types";
 
+
+// TODO: Ensure stream can be resumed, update the status on frontend.
+// Color text in a different color everytime stream is stopped and resumed
+// Use the Last-Event-ID to track this. 
 export default function SSEPage() {
     const navigate = useNavigate();
     const eventSourceRef = useRef<EventSource | null>(null);

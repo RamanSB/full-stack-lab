@@ -12,7 +12,7 @@ export function openJobStream({
     onMessage,
     onError,
 }: OpenJobStreamOptions): EventSource {
-    const eventSource = new EventSource(`${API_BASE_URL}/jobs/${jobId}?word_count=50`);
+    const eventSource = new EventSource(`${API_BASE_URL}/jobs/${jobId}?word_count=30`);
 
     eventSource.addEventListener("message", (event: MessageEvent) => {
         onMessage(event.data)

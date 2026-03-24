@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 from multiprocessing import allow_connection_pickling
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware import Middleware
 from pydantic import config
 
 from backend.app.api.main import api_router
