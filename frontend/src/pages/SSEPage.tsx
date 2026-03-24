@@ -227,7 +227,7 @@ export default function SSEPage() {
                     ) : (
                         <div className="stream-text">
                             {chunks.map((chunk, index) => (
-                                <span key={`${index}-${chunk.text}`} style={{ background: COLOR_MAP[chunk.color], transition: "color 0.2s ease" }}>
+                                <span key={`${index}-${chunk.text}`} style={{ background: COLOR_MAP[chunk.color], }}>
                                     {chunk.text}{" "}
                                 </span>
                             ))}

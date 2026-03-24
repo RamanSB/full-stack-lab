@@ -27,6 +27,9 @@ data: hello
 retry: 10000
 ```
 
+I also implemented a simulation of a connection dropping by pausing the stream (drops connection & stores lastEventId as a ref) and also resuming the connection by providing this as a query parameter to the backend server endpoint which can decide how to continue
+streaming the remaining chunks.
+
 #### CORS
 
 When a request is made from one server to another server (A server running on a localhost is denoted by a combination of: the domain+host+port). The server which hosts the endpoints i.e. servers the request must whitelist the requesting server if they do not share the same origin, this is achieved by configuring `CORSMiddleware` and ensuring our `FastAPI` app uses/adds this middleware:
