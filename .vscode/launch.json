@@ -1,0 +1,43 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Local [BE] - Debug",
+            "consoleName": "Local Debug BE",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "python": "${workspaceFolder}/backend/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "args": [
+                "backend.app.main:app",
+                "--reload",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8000"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Local [FE]",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "pnpm dev --host localhost",
+            "cwd": "${workspaceFolder}/frontend"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Local [FE+BE]",
+            "configurations": [
+                "Local [BE] - Debug",
+                "Local [FE]"
+            ]
+        }
+    ]
+}
