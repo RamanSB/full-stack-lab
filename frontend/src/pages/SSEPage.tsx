@@ -11,13 +11,19 @@ import type { Job } from "../features/jobs/types";
 export default function SSEPage() {
     const navigate = useNavigate();
     const eventSourceRef = useRef<EventSource | null>(null);
+    const lastEventIdRef = useRef<string | null>(null)
+    const resumptionCountRef = useRef<number>(0)
 
     const [job, setJob] = useState<Job | null>(null);
     const [isCreatingJob, setIsCreatingJob] = useState(false);
+    const [isStreamComplete, setIsStreamComplete] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
     const [chunks, setChunks] = useState<string[]>([]);
     const [status, setStatus] = useState<string>("IDLE");
     const [error, setError] = useState<string | null>(null);
+
+
+    const NUMBER_OF_WORDS: number = 50
 
     useEffect(() => {
         // Debug: component mounted
@@ -40,12 +46,12 @@ export default function SSEPage() {
             console.log("Creating job...");
             const createdJob = await createJob({
                 job_type: "TEXT_STREAM_DEMO",
-                // payload: {
-                //     word_count: 30,
-                // },
-                // meta: {
-                //     source: "frontend-demo",
-                // },
+                payload: {
+                    word_count: NUMBER_OF_WORDS,
+                },
+                meta: {
+                    source: "frontend-demo",
+                },
             });
             console.log("Job created:", createdJob);
 
@@ -53,20 +59,30 @@ export default function SSEPage() {
             setStatus(createdJob.status);
             setIsCreatingJob(false);
             setIsStreaming(true);
+            setIsStreamComplete(false)
 
             eventSourceRef.current?.close();
 
             eventSourceRef.current = openJobStream({
                 jobId: createdJob.id,
-                onMessage: (data: string) => {
+                onMessage: (data: string, lastEventId: string) => {
+                    lastEventIdRef.current = lastEventId
                     console.log("Stream event received:", data);
                     setChunks((prev) => [...prev, data])
+                },
+                onTerminate: (data: string) => {
+                    console.log("Final stream event received:", data)
+                    setChunks((prev) => [...prev, data])
+                    eventSourceRef.current?.close()
+                    setIsStreaming(false);
+                    setIsStreamComplete(true)
                 },
                 onError: () => {
                     console.log("Stream connection failed.");
                     setIsStreaming(false);
                     setError("Stream connection failed.");
                 },
+                lastEventId: null
             });
             console.log("SSE connection opened for jobId:", createdJob.id);
         } catch (err) {
@@ -83,6 +99,42 @@ export default function SSEPage() {
         eventSourceRef.current?.close();
         eventSourceRef.current = null;
         setIsStreaming(false);
+        setJob(null)
+        setChunks([])
+        setStatus()
+    }
+
+    function handlePauseStream() {
+        console.log("Pausing stream...")
+        eventSourceRef.current?.close()
+        setIsStreaming(false);
+    }
+
+    function handleResumeStream() {
+        console.log(`Resuming stream for job id: ${job?.id}`)
+        resumptionCountRef.current += 1
+        setIsStreaming(true);
+        eventSourceRef.current = openJobStream({
+            jobId: job?.id!, // The button would be disabled if job doesn't exist.
+            onMessage: (data: string, lastEventId: string) => {
+                lastEventIdRef.current = lastEventId
+                console.log("Stream event received:", data);
+                setChunks((prev) => [...prev, data])
+            },
+            onTerminate: (data: string) => {
+                console.log("Final stream event received:", data)
+                setChunks((prev) => [...prev, data])
+                eventSourceRef.current?.close()
+                setIsStreaming(false);
+                setIsStreamComplete(true)
+            },
+            onError: () => {
+                console.log("Stream connection failed.");
+                setIsStreaming(false);
+                setError("Stream connection failed.");
+            },
+            lastEventId: lastEventIdRef.current
+        });
     }
 
     return (
@@ -120,6 +172,20 @@ export default function SSEPage() {
                     disabled={!isStreaming}
                 >
                     Stop Stream
+                </button>
+                <button
+                    className="secondary-button"
+                    onClick={handlePauseStream}
+                    disabled={!isStreaming}
+                >
+                    Pause Stream
+                </button>
+                <button
+                    className="secondary-button"
+                    onClick={handleResumeStream}
+                    disabled={!job || isStreaming || isStreamComplete}
+                >
+                    Resume Stream
                 </button>
             </div>
 

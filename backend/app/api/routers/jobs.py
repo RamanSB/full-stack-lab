@@ -25,14 +25,14 @@ def create_job(session: SessionDep, job_create: JobCreate):
     return db_obj
 
 
-# TODO: Send a completion signal when the stream has completed to prevent onError
-# event on frontend.
 @router.get("/{job_id}", response_class=EventSourceResponse)
 async def sse_job(
-    session: SessionDep, job_id: str, word_count: int = 100
+    session: SessionDep,
+    job_id: str,
+    last_event_id: int | None = None,
 ) -> AsyncIterable[ServerSentEvent]:
 
-    print(f"sse_job called with job_id={job_id}, word_count={word_count}")
+    print(f"sse_job called with job_id={job_id}")
     stmt = select(Job).where(Job.id == job_id)
     job: Optional[Job] = session.exec(stmt).first()
     if not job:
@@ -44,8 +44,21 @@ async def sse_job(
     session.commit()
     session.refresh(job)
 
-    for i in range(word_count):
+    word_count = job.payload["word_count"]
+    print(f"word_count for job {job_id}: {word_count}")
+
+    for i in range(0 if not last_event_id else int(last_event_id), word_count, 1):
+        is_final_event: bool = i == word_count - 1
+        event_type = "terminate" if is_final_event else "message"
+        if is_final_event:
+            job.status = JobStatus.COMPLETED
+            session.add(job)
+            session.commit()
+            session.refresh(job)
         yield ServerSentEvent(
-            data=get_random_word(), event="message", id=str(i + 1), retry=10000
+            data=get_random_word(),
+            event=event_type,
+            id=str(i + 1),
+            retry=10000,
         )
         await asyncio.sleep(0.2)

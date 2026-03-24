@@ -39,7 +39,7 @@ app.add_middleware(CORSMiddleware, **config)
 #### Frontend EventSource / Handling SSE Streams
 
 The Frontend must leverage a browser API known as `EventSource`, we pass the endpoint path
-of the SSE endpoint. We then add an event listener for the particular event_type and we can handle the incoming responses in our event handler, typically by appending the event chunks / messages to some state that can be rendered.
+of the SSE endpoint, this initiates a GET request and keeps the connection open. We then add an event listener for the particular event_type and we can handle the incoming responses in our event handler, typically by appending the event chunks / messages to some state that can be rendered.
 
 ---
 
