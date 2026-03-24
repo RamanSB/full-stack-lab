@@ -8,6 +8,24 @@ import type { Job } from "../features/jobs/types";
 // TODO: Ensure stream can be resumed, update the status on frontend.
 // Color text in a different color everytime stream is stopped and resumed
 // Use the Last-Event-ID to track this. 
+
+type ChunkColor = "default" | "blue" | "green" | "purple" | "orange";
+type StreamChunk = {
+    text: string;
+    color: ChunkColor
+}
+const CHUNK_COLORS: ChunkColor[] = ["default", "blue", "green", "purple", "orange"];
+const COLOR_MAP = {
+    default: "black",
+    blue: "#3b82f6",
+    green: "#22c55e",
+    purple: "#a855f7",
+    orange: "#f97316",
+};
+function getColorForResumeCount(count: number): ChunkColor {
+    return CHUNK_COLORS[count % CHUNK_COLORS.length];
+}
+
 export default function SSEPage() {
     const navigate = useNavigate();
     const eventSourceRef = useRef<EventSource | null>(null);
@@ -18,7 +36,7 @@ export default function SSEPage() {
     const [isCreatingJob, setIsCreatingJob] = useState(false);
     const [isStreamComplete, setIsStreamComplete] = useState(false);
     const [isStreaming, setIsStreaming] = useState(false);
-    const [chunks, setChunks] = useState<string[]>([]);
+    const [chunks, setChunks] = useState<StreamChunk[]>([]);
     const [status, setStatus] = useState<string>("IDLE");
     const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +52,33 @@ export default function SSEPage() {
             eventSourceRef.current?.close();
         };
     }, []);
+
+    function connectStream(jobId: string, lastEventId: string | null) {
+        const color = getColorForResumeCount(resumptionCountRef.current);
+
+        eventSourceRef.current?.close();
+
+        eventSourceRef.current = openJobStream({
+            jobId,
+            lastEventId,
+            onMessage: (data: string, lastEventId: string) => {
+                lastEventIdRef.current = lastEventId;
+                setChunks((prev) => [...prev, { text: data, color }]);
+            },
+            onTerminate: (data: string) => {
+                setChunks((prev) => [...prev, { text: data, color }]);
+                eventSourceRef.current?.close();
+                eventSourceRef.current = null;
+                setIsStreaming(false);
+                setIsStreamComplete(true);
+                setStatus("COMPLETED");
+            },
+            onError: () => {
+                setIsStreaming(false);
+                setError("Stream connection failed.");
+            },
+        });
+    }
 
     async function handleStartDemo() {
         try {
@@ -61,29 +106,7 @@ export default function SSEPage() {
             setIsStreaming(true);
             setIsStreamComplete(false)
 
-            eventSourceRef.current?.close();
-
-            eventSourceRef.current = openJobStream({
-                jobId: createdJob.id,
-                onMessage: (data: string, lastEventId: string) => {
-                    lastEventIdRef.current = lastEventId
-                    console.log("Stream event received:", data);
-                    setChunks((prev) => [...prev, data])
-                },
-                onTerminate: (data: string) => {
-                    console.log("Final stream event received:", data)
-                    setChunks((prev) => [...prev, data])
-                    eventSourceRef.current?.close()
-                    setIsStreaming(false);
-                    setIsStreamComplete(true)
-                },
-                onError: () => {
-                    console.log("Stream connection failed.");
-                    setIsStreaming(false);
-                    setError("Stream connection failed.");
-                },
-                lastEventId: null
-            });
+            connectStream(createdJob.id, null)
             console.log("SSE connection opened for jobId:", createdJob.id);
         } catch (err) {
             setIsCreatingJob(false);
@@ -101,7 +124,7 @@ export default function SSEPage() {
         setIsStreaming(false);
         setJob(null)
         setChunks([])
-        setStatus()
+        setStatus("IDLE")
     }
 
     function handlePauseStream() {
@@ -114,27 +137,7 @@ export default function SSEPage() {
         console.log(`Resuming stream for job id: ${job?.id}`)
         resumptionCountRef.current += 1
         setIsStreaming(true);
-        eventSourceRef.current = openJobStream({
-            jobId: job?.id!, // The button would be disabled if job doesn't exist.
-            onMessage: (data: string, lastEventId: string) => {
-                lastEventIdRef.current = lastEventId
-                console.log("Stream event received:", data);
-                setChunks((prev) => [...prev, data])
-            },
-            onTerminate: (data: string) => {
-                console.log("Final stream event received:", data)
-                setChunks((prev) => [...prev, data])
-                eventSourceRef.current?.close()
-                setIsStreaming(false);
-                setIsStreamComplete(true)
-            },
-            onError: () => {
-                console.log("Stream connection failed.");
-                setIsStreaming(false);
-                setError("Stream connection failed.");
-            },
-            lastEventId: lastEventIdRef.current
-        });
+        connectStream(job?.id!, lastEventIdRef.current)
     }
 
     return (
@@ -169,7 +172,7 @@ export default function SSEPage() {
                 <button
                     className="secondary-button"
                     onClick={handleStopStream}
-                    disabled={!isStreaming}
+                    disabled={!job}
                 >
                     Stop Stream
                 </button>
@@ -223,7 +226,11 @@ export default function SSEPage() {
                         </p>
                     ) : (
                         <div className="stream-text">
-                            {chunks.join(" ")}
+                            {chunks.map((chunk, index) => (
+                                <span key={`${index}-${chunk.text}`} style={{ background: COLOR_MAP[chunk.color], transition: "color 0.2s ease" }}>
+                                    {chunk.text}{" "}
+                                </span>
+                            ))}
                         </div>
                     )}
                 </div>
