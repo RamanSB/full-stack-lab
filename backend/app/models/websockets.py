@@ -26,4 +26,6 @@ class MessageDelivery(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     message_id: uuid.UUID = Field(foreign_key="messages.id", nullable=False)
     recipient_id: uuid.UUID = Field(foreign_key="users.id", nullable=False)
-    delivered_at: datetime = Field(nullable=False, sa_type=TIMESTAMP(timezone=True))
+    delivered_at: datetime | None = Field(
+        nullable=True, sa_type=TIMESTAMP(timezone=True)
+    )

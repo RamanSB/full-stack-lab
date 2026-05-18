@@ -1,20 +1,31 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ConnectionStatusHeader } from "../components/ConnectionStatusHeader";
-import { createWsUser, getCreateWsUserErrorMessage } from "../features/websockets/api";
+import {
+    createWsUser,
+    getCreateWsUserErrorMessage,
+    type WsUser,
+} from "../features/websockets/api";
 import "../styles/websocket-demo.css"
 
-const CLIENT_NAME_STORAGE_KEY = "websocket_client_name"
+const CLIENT_USER_STORAGE_KEY = "websocket_client_user"
 
-function getStoredClientName(): string | null {
-    const name = sessionStorage.getItem(CLIENT_NAME_STORAGE_KEY)?.trim()
-    return name || null
+function getStoredClientUser(): WsUser | null {
+    const raw = sessionStorage.getItem(CLIENT_USER_STORAGE_KEY)
+    if (!raw) return null
+    try {
+        const user = JSON.parse(raw) as WsUser
+        if (user.id && user.username) return user
+    } catch {
+        // ignore invalid stored value
+    }
+    return null
 }
 
 export default function WebsocketPage() {
 
     const navigate = useNavigate()
-    const [clientName, setClientName] = useState<string | null>(getStoredClientName)
+    const [wsUser, setWsUser] = useState<WsUser | null>(getStoredClientUser)
 
     return <section className="page-card">
         <div className="page-header">
@@ -33,13 +44,13 @@ export default function WebsocketPage() {
                 Back
             </button>
         </div>
-        {clientName ? (
-            <ChatInterface clientId={clientName} />
+        {wsUser ? (
+            <ChatInterface user={wsUser} />
         ) : (
             <NameEntryForm
-                onSubmit={(name) => {
-                    sessionStorage.setItem(CLIENT_NAME_STORAGE_KEY, name)
-                    setClientName(name)
+                onSubmit={(user) => {
+                    sessionStorage.setItem(CLIENT_USER_STORAGE_KEY, JSON.stringify(user))
+                    setWsUser(user)
                 }}
             />
         )}
@@ -47,7 +58,7 @@ export default function WebsocketPage() {
 }
 
 type NameEntryFormProps = {
-    onSubmit: (name: string) => void
+    onSubmit: (user: WsUser) => void
 }
 
 function NameEntryForm({ onSubmit }: NameEntryFormProps) {
@@ -63,8 +74,8 @@ function NameEntryForm({ onSubmit }: NameEntryFormProps) {
         setError(null)
         setIsSubmitting(true)
         try {
-            await createWsUser({ username: name })
-            onSubmit(name)
+            const user = await createWsUser({ username: name })
+            onSubmit(user)
         } catch (err) {
             setError(getCreateWsUserErrorMessage(err))
         } finally {
@@ -108,7 +119,8 @@ function NameEntryForm({ onSubmit }: NameEntryFormProps) {
 }
 
 export type Message = {
-    user_id: string
+    sender_id: string
+    sender_name?: string
     content: string
     sent_at: string // ISO-8601 Timestamp
 }
@@ -148,14 +160,14 @@ function ChatBubble({ message, isSender }: ChatBubbleProps) {
     return (
         <div className={`chat-bubble ${isSender ? "self" : "other"}`}>
             {!isSender && (
-                <span className="chat-bubble-sender" title={message.user_id}>
-                    {message.user_id}
+                <span className="chat-bubble-sender" title={message.sender_id}>
+                    {message.sender_name ?? message.sender_id}
                 </span>
             )}
             <p className="chat-bubble-content">{message.content}</p>
             <div className="chat-bubble-meta">
                 {isSender && (
-                    <span className="chat-bubble-client" title={message.user_id}>
+                    <span className="chat-bubble-client" title={message.sender_id}>
                         You
                     </span>
                 )} {"• "}
@@ -168,10 +180,10 @@ function ChatBubble({ message, isSender }: ChatBubbleProps) {
 }
 
 type ChatInterfaceProps = {
-    clientId: string
+    user: WsUser
 }
 
-function ChatInterface({ clientId }: ChatInterfaceProps) {
+function ChatInterface({ user }: ChatInterfaceProps) {
 
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState("")
@@ -181,18 +193,19 @@ function ChatInterface({ clientId }: ChatInterfaceProps) {
     const handleConnect = async () => {
         try {
             console.log(`ws: ${import.meta.env.VITE_WEBSOCKET_CONNECTION_URL}`)
-            wsRef.current = new WebSocket(`${import.meta.env.VITE_WEBSOCKET_CONNECTION_URL}/?user=${clientId}`)
+            wsRef.current = new WebSocket(`${import.meta.env.VITE_WEBSOCKET_CONNECTION_URL}/?user=${user.username}`)
             // on open (websocket connection established)
             wsRef.current.onopen = () => {
                 setIsConnecteed(true)
-                console.log(`${clientId} connected`)
+                console.log(`${user.username} connected`)
             }
 
             wsRef.current.onmessage = (ev: MessageEvent) => {
                 try {
                     const msg = JSON.parse(ev.data)
                     const newMessage: Message = {
-                        user_id: msg.sender,
+                        sender_id: msg.sender_id,
+                        sender_name: msg.sender,
                         content: msg.content,
                         sent_at: msg.sent_at
                     }
@@ -206,7 +219,7 @@ function ChatInterface({ clientId }: ChatInterfaceProps) {
             // on close (websocket disconnected)
             wsRef.current.onclose = () => {
                 setIsConnecteed(false)
-                console.log(`${clientId} disconnected`)
+                console.log(`${user.username} disconnected`)
             }
 
         } catch (error) {
@@ -228,10 +241,13 @@ function ChatInterface({ clientId }: ChatInterfaceProps) {
             console.warn("Attempting to send message without a valid websocket connection.")
             return
         }
-        let message: string = input.trim()
-        let messageObject = {
-            "sender": clientId,
-            "content": message
+        const content = input.trim()
+        if (!content) return
+
+        const messageObject = {
+            sender_id: user.id,
+            sender: user.username,
+            content,
         }
         wsRef.current.send(JSON.stringify(messageObject))
         setInput("")
@@ -241,17 +257,17 @@ function ChatInterface({ clientId }: ChatInterfaceProps) {
 
 
     return <div className="demo-panel">
-        <ConnectionStatusHeader isConnected={isConnected} clientId={clientId} onConnect={handleConnect} onDisconnect={handleDisconnect} />
+        <ConnectionStatusHeader isConnected={isConnected} clientId={user.username} onConnect={handleConnect} onDisconnect={handleDisconnect} />
 
 
         <div className="chat-pane">
             <div className="chat-messages">
 
                 {messages.map((message, idx) => {
-                    const isSender = message.user_id === clientId
+                    const isSender = message.sender_id === user.id
                     return (
                         <div
-                            key={`${message.sent_at}-${message.user_id}-${idx}`}
+                            key={`${message.sent_at}-${message.sender_id}-${idx}`}
                             className={`chat-message-row ${isSender ? "self" : "other"}`}
                         >
                             <ChatBubble message={message} isSender={isSender} />
