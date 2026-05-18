@@ -1,6 +1,7 @@
 import { Link, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import SSEPage from "./pages/SSEPage";
+import WebsocketPage from "./pages/WebsocketPage";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/sse" element={<SSEPage />} />
+          <Route path="/websockets" element={<WebsocketPage />} />
         </Routes>
       </main>
     </div>

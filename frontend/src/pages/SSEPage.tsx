@@ -44,10 +44,8 @@ export default function SSEPage() {
     const NUMBER_OF_WORDS: number = 50
 
     useEffect(() => {
-        // Debug: component mounted
         console.log("SSEPage mounted");
         return () => {
-            // Debug: cleanup event source
             console.log("Cleaning up EventSource...");
             eventSourceRef.current?.close();
         };

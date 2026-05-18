@@ -19,6 +19,14 @@ export default function HomePage() {
                     Server Sent Events
                 </button>
             </div>
+
+            <div className="button-row">
+                <button className="primary-button" onClick={(() => navigate("/websockets"))} >
+                    Websockets
+                </button>
+            </div>
+
+
         </section>
     );
 }

@@ -46,6 +46,20 @@ of the SSE endpoint, this initiates a GET request and keeps the connection open.
 
 ---
 
+## 📅 Date: 2026-05-18
+ 
+ ### 📝 What I Learned
+ - How to implement Websockets [Fast API]
+ 
+ ### 🗒️ Details & Reflections
+ More elaborate notes, context, or thoughts about the day's learning.
+ 
+ ### 🔖 Subtopics
+ - Subtopic 1
+ - Subtopic 2
+
+---
+
 > **Template: Copy/Paste this for each entry**
 >
 > ## 📅 Date: YYYY-MM-DD
