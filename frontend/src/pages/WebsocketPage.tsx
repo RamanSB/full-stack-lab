@@ -74,33 +74,35 @@ function NameEntryForm({ onSubmit }: NameEntryFormProps) {
 
     return (
         <div className="demo-panel name-entry-panel">
-            <h2 className="demo-panel-title">Choose a display name</h2>
-            <p className="page-description name-entry-description">
-                Enter a name to join the chat. Other clients will see this name on your messages.
-            </p>
-            {error && <p className="error-text">{error}</p>}
-            <form className="name-entry-form" onSubmit={handleSubmit}>
-                <input
-                    className="chat-input name-entry-input"
-                    type="text"
-                    placeholder="Your name"
-                    value={nameInput}
-                    maxLength={32}
-                    autoFocus
-                    disabled={isSubmitting}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                        setNameInput(event.target.value)
-                        if (error) setError(null)
-                    }}
-                />
-                <button
-                    className="primary-button"
-                    type="submit"
-                    disabled={nameInput.trim() === "" || isSubmitting}
-                >
-                    {isSubmitting ? "Joining…" : "Continue"}
-                </button>
-            </form>
+            <div className="name-entry-content">
+                <h2 className="demo-panel-title name-entry-title">Choose a display name</h2>
+                <p className="name-entry-description">
+                    Enter a name to join the chat. Other clients will see this name on your messages.
+                </p>
+                {error && <p className="name-entry-error">{error}</p>}
+                <form className="name-entry-form" onSubmit={handleSubmit}>
+                    <input
+                        className="name-entry-input"
+                        type="text"
+                        placeholder="Your name"
+                        value={nameInput}
+                        maxLength={32}
+                        autoFocus
+                        disabled={isSubmitting}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                            setNameInput(event.target.value)
+                            if (error) setError(null)
+                        }}
+                    />
+                    <button
+                        className="primary-button name-entry-submit"
+                        type="submit"
+                        disabled={nameInput.trim() === "" || isSubmitting}
+                    >
+                        {isSubmitting ? "Joining…" : "Continue"}
+                    </button>
+                </form>
+            </div>
         </div>
     )
 }
@@ -156,7 +158,7 @@ function ChatBubble({ message, isSender }: ChatBubbleProps) {
                     <span className="chat-bubble-client" title={message.user_id}>
                         You
                     </span>
-                )}
+                )} {"• "}
                 <time className="chat-bubble-time" dateTime={message.sent_at}>
                     {formatMessageTime(message.sent_at)}
                 </time>

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from typing import Annotated, Dict, List
+from typing import Annotated, Any, Dict, List
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -14,7 +14,7 @@ from pydantic import BaseModel, WebsocketUrl
 from datetime import datetime
 
 from backend.app.deps import SessionDep
-from backend.app.models import User
+from backend.app.models import Message, User
 
 
 router: APIRouter = APIRouter(prefix="/ws", tags=["websockets"])
@@ -53,12 +53,14 @@ manager = ConnectionManager()
 async def websocket_endpoint(
     websocket: WebSocket, user: Annotated[str, Query()], session: SessionDep
 ):
+
     print(f"Attempting to upgrade HTTP protocol to WS.")
     await manager.connect(websocket, user)
     while True:
         try:
             json_data = await websocket.receive_json()  # Throws WebSocketDisconnect
             json_data["sent_at"] = datetime.now(tz=UTC).isoformat()
+            # persist_message(json_data)
             await manager.broadcast(json_data)
         except WebSocketDisconnect as ex:
             manager.disconnect(websocket)
